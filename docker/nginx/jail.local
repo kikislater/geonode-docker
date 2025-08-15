@@ -1,0 +1,8 @@
+[nginx-malicious]
+enabled  = true
+filter   = nginx-malicious
+action   = iptables-multiport[name=nginx-malicious, port="http,https"]
+logpath  = /var/log/nginx/access_malicious.log
+maxretry = 1
+bantime  = 31536000   # 1 year in seconds
+findtime = 600
