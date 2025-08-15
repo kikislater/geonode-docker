@@ -40,6 +40,21 @@ gzip_types
         application/x-javascript
         application/json;
 
+# Suspicious request detection
+map $request $malicious_log {
+    default 0;
+    "~*exec\("       1;
+    "~*\$\{IFS\}"    1;
+    "~*base64\s+-d"  1;
+}
+
+access_log /var/log/nginx/access_malicious.log main if=$malicious_log;
+
+## Symlink present in nginx alpine
+# access_log /var/log/nginx/access.log main;
+# error_log  /var/log/nginx/error.log warn;
+
+
 # GeoServer
 location /geoserver {
   # Using a variable is a trick to let Nginx start even if upstream host is not up yet
@@ -68,7 +83,7 @@ location /static/ {
   location ~* \.(?:html|js|jpg|jpeg|gif|png|css|tgz|gz|rar|bz2|doc|pdf|ppt|tar|wav|bmp|ttf|rtf|swf|ico|flv|txt|woff|woff2|svg|xml)$ {
       gzip_static always;
       expires 30d;
-      access_log off;
+      # access_log off;
       add_header Pragma "public";
       add_header Cache-Control "max-age=31536000, public";
   }
@@ -80,7 +95,7 @@ location /uploaded/ {
   location ~* \.(?:html|js|jpg|jpeg|gif|png|css|tgz|gz|rar|bz2|doc|pdf|ppt|tar|wav|bmp|ttf|rtf|swf|ico|flv|txt|woff|woff2|svg|xml)$ {
       gzip_static always;
       expires 30d;
-      access_log off;
+      # access_log off;
       add_header Pragma "public";
       add_header Cache-Control "max-age=31536000, public";
   }
@@ -128,7 +143,7 @@ location / {
   location ~* \.(?:js|jpg|jpeg|gif|png|tgz|gz|rar|bz2|doc|pdf|ppt|tar|wav|bmp|ttf|rtf|swf|ico|flv|woff|woff2|svg|xml)$ {
       gzip_static always;
       expires 30d;
-      access_log off;
+      # access_log off;
       add_header Pragma "public";
       add_header Cache-Control "max-age=31536000, public";
   }
