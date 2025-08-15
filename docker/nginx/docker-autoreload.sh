@@ -31,7 +31,6 @@ do
         then
                 echo "Configuration valid, we reload..."
                 nginx -s reload
-                logrotate -f /etc/logrotate.d/nginx
         else
                 echo "Configuration not valid, we do not reload."
         fi
