@@ -69,6 +69,17 @@ else
         ln -sf /etc/nginx/nginx.https.available.conf /etc/nginx/nginx.https.enabled.conf
 fi
 
+# Start log rotation loop in background
+echo "Starting logrotate daemon..."
+(while true; do
+    logrotate -f /etc/logrotate.d/nginx
+    sleep 3600
+done) &
+
+# Start fail2ban
+echo "Starting Fail2Ban..."
+fail2ban-server -x start
+
 echo "Loading nginx autoreloader"
 sh /docker-autoreload.sh &
 
