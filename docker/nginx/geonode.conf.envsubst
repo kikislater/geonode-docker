@@ -54,12 +54,83 @@ access_log /var/log/nginx/access_malicious.log main if=$malicious_log;
 # access_log /var/log/nginx/access.log main;
 # error_log  /var/log/nginx/error.log warn;
 
+location /catalogue/csw {
+    set $upstream django:8000;
+
+    # Only allow standard read operations
+    if ($args !~* "(request=GetCapabilities|request=GetRecords|request=GetRecordById|request=DescribeRecord|request=GetDomain|request=LockFeature|request=Transaction|mode=oaipmh)") {
+      return 403;  # or deny; Django will handle login redirect for restricted operations
+    }
+
+    # Pass allowed requests to Django / GeoNode
+    proxy_pass http://$upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+
+    add_header Access-Control-Allow-Credentials false;
+    add_header Access-Control-Allow-Headers "Content-Type, Accept, Authorization, Origin, User-Agent";
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, OPTIONS";
+
+    proxy_redirect off;
+    proxy_hide_header X-Frame-Options;
+    proxy_request_buffering off;
+}
 
 # GeoServer
 location /geoserver {
   # Using a variable is a trick to let Nginx start even if upstream host is not up yet
   # (see https://sandro-keil.de/blog/2017/07/24/let-nginx-start-if-upstream-host-is-unavailable-or-down/)
   set $upstream $GEOSERVER_LB_HOST_IP:$GEOSERVER_LB_PORT;
+
+# By default, deny
+set $allow_request 0;
+
+# Allow standard GetCapabilities for all services
+if ($arg_request ~* "^GetCapabilities$") {
+    set $allow_request 1;
+}
+
+# Allow standard WFS operations (excluding GetCapabilities)
+if ($arg_request ~* "^(DescribeFeatureType|GetFeature|LockFeature|Transaction|GetPropertyValue|GetFeatureWithLock|CreateStoredQuery|DropStoredQuery|ListStoredQueries|DescribeStoredQueries|GetGMLObject)$") {
+    set $allow_request 1;
+}
+
+# Allow standard WMS operations (excluding GetCapabilities)
+if ($arg_request ~* "^(GetMap|GetFeatureInfo|DescribeLayer|GetLegendGraphic)$") {
+    set $allow_request 1;
+}
+
+# Allow WCS operations (excluding GetCapabilities)
+if ($arg_request ~* "^(DescribeCoverage|GetCoverage)$") {
+    set $allow_request 1;
+}
+
+# Allow WPS standard operations (excluding GetCapabilities)
+if ($arg_request ~* "^(DescribeProcess|Execute|Dismiss|GetExecutions)$") {
+    set $allow_request 1;
+}
+
+# Allow WMTS / TMS / GWC standard URLs
+if ($request_uri ~* "^/geoserver/gwc/service/(tms|wmts)/") {
+    set $allow_request 1;
+}
+
+# Allow GUI / admin paths and GS Rest
+if ($request_uri ~* "^/geoserver/(web|index\.html|openlayers3/|webresources/|styles/|rest)") {
+    set $allow_request 1;
+}
+
+# Explicitly block exec or any "run" type requests outside GUI
+if ($arg_request ~* "^(exec|RunProcess|SubmitJob)$") {
+    return 403;
+}
+
+# Deny everything else
+if ($allow_request != 1) {
+    return 403;
+}
 
   proxy_set_header X-Forwarded-Host $host;
   proxy_set_header X-Forwarded-Server $host;
